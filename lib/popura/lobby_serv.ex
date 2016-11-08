@@ -26,8 +26,8 @@ defmodule Popura.LobbyServ do
   alias Popura.Player
 
   @target_hand_size 10
-  @max_ticks_czar   15
-  @max_ticks_player 15
+  @max_ticks_czar   10
+  @max_ticks_player 10
 
   def start_link(opts \\ []) do
     default_state = %{
@@ -56,6 +56,10 @@ defmodule Popura.LobbyServ do
   # lod lobby & players
   defp inflate_lobby(lobby_id) do
     lobby = Repo.get!(Lobby, lobby_id) |> Repo.preload([:players, players: :hand])
+  end
+
+  defp json_card(card) do
+    %{id: card.id, body: card.body, slots: card.slots}
   end
 
   # mode changes
@@ -111,20 +115,23 @@ defmodule Popura.LobbyServ do
       {taken,left}  = Enum.split(white_cards, missing_cards)
 
       # swap card pointers
-      for card_ptr <- taken do
+      taken = for card_ptr <- taken do
         DeckCard.changeset(card_ptr, %{deck_id: hand.id})
         |> Repo.update!
+
+        card_ptr.card
       end
 
       # build json representation of new hand ...
       hand_descriptor =
-        Enum.map(hand.cards, fn el -> el.body end) ++
-        Enum.map(taken, fn el -> el.card.body end)
+        Enum.map(hand.cards, &json_card/1) ++
+        Enum.map(taken, &json_card/1)
 
       # announce player's hand to them ...
       # TODO: goes to shared lobby ...
-      response = %{cards: hand_descriptor, prompt: black_card.card.body, target: player.user_id}
-      Popura.Endpoint.broadcast! ident(lobby.id), "hand", response
+      prompt_card = json_card(black_card.card)
+      response = %{cards: hand_descriptor, prompt: prompt_card, target: player.user_id}
+      Popura.Endpoint.broadcast! ident(lobby.id), "deal", response
       left # yield remaining deck for next player
     end)
 
@@ -179,24 +186,32 @@ defmodule Popura.LobbyServ do
     end
   end
 
-  def handle_cast({:deal, lobby_id}, state) do
-    # select random cards from this lobby ...
-    lobby = Repo.get!(Lobby, lobby_id) 
-            |> Repo.preload([:white_deck, white_deck: :cards])
-            |> Repo.preload([:black_deck, black_deck: :cards])
+  def handle_call({:submit, user_id, choices}, _from, state) do
+    Logger.debug "user #{inspect user_id} submitted #{inspect choices}"
+    choices = choices |> Enum.map(&String.to_integer/1)
 
-    prompt = lobby.black_deck.cards
-              |> Enum.shuffle
-              |> List.first
-              |> Map.get(:body)
+    # first load the players hand and discard the cards
+    lobby = Repo.get!(Lobby, state.lobby_id)
+    player = Repo.one(from p in Player, where: p.user_id == ^user_id and p.lobby_id == ^state.lobby_id)
+    hand = Repo.all(from dc in DeckCard, where: dc.deck_id == ^player.hand_id)
+    |> Repo.preload([:card])
 
-    cards = lobby.white_deck.cards
-            |> Enum.shuffle
-            |> Enum.take(10)
-            |> Enum.map(fn el -> el.body end)
+    # boops
+    select_cards = Enum.filter(hand, fn el -> Enum.member?(choices, el.card.id) end)
+    reject_cards = Enum.reject(hand, fn el -> Enum.member?(choices, el.card.id) end)
+    hand_descriptor = Enum.map(reject_cards, fn el -> el.card end) |> Enum.map(&json_card/1)
 
-    Popura.Endpoint.broadcast! ident(lobby_id), "hand", %{cards: cards, prompt: prompt}
-    {:noreply, state}
+    Logger.debug "moving selected cards to discard => #{inspect select_cards}"
+    for card <- select_cards do
+      changeset = DeckCard.changeset(card, %{deck_id: lobby.white_discard_id})
+      |> Repo.update!
+    end
+
+    # send the rejects back to the player
+    response = %{cards: hand_descriptor, target: player.user_id}
+    Popura.Endpoint.broadcast! ident(state.lobby_id), "confirm", response
+
+    {:reply, :ok, state}
   end
 
   defp ident(lobby_id), do: "lobby:#{lobby_id}"

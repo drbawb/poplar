@@ -10,6 +10,10 @@
   font-weight: bold;
 }
 
+.card-white.chosen {
+	background-color: #00ff00;
+}
+
 .card-black {
   background-color: #000000;
   color: #ffffff;

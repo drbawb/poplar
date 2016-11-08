@@ -5,6 +5,8 @@ defmodule Popura.Player do
   schema "players" do
     field :name, :string
     field :user_id, Ecto.UUID
+
+    belongs_to :hand,  Popura.Deck
     belongs_to :lobby, Popura.Lobby
 
     timestamps()

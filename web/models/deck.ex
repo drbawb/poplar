@@ -3,9 +3,7 @@ defmodule Popura.Deck do
 
   schema "decks" do
     field :name, :string
-
-    many_to_many(:cards, Popura.Card, join_through: "deck_cards")
-
+    many_to_many(:cards, Popura.Card, join_through: Popura.DeckCard)
     timestamps()
   end
 

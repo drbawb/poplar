@@ -5,6 +5,7 @@ defmodule Popura.Lobby do
     field :name, :string
     field :password, :string
     field :owner_id, Ecto.UUID
+    field :serv_lock, :boolean
 
     has_many :players, Popura.Player
 
