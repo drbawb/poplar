@@ -1,6 +1,10 @@
 defmodule Popura.Router do
   use Popura.Web, :router
 
+  pipeline :core do
+    plug Popura.Auth
+  end
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -14,9 +18,12 @@ defmodule Popura.Router do
   end
 
   scope "/", Popura do
-    pipe_through :browser # Use the default browser stack
+    pipe_through [:browser, :core] # Use the default browser stack
 
     get "/", PageController, :index
+    resources "/lobbies", LobbyController do
+      resources "/players", PlayerController
+    end
   end
 
   # Other scopes may use custom stacks.

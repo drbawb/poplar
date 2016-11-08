@@ -1,0 +1,13 @@
+<div class="jumbotron">
+  <h2>Joining Loby</h2>
+  <p class="lead">
+  You are about to enter the <%= @lobby.name %> lobby.
+  Please select a nickname, and enter the lobby password if necessary.
+  </p>
+</div>
+
+
+<%= render "form.html", changeset: @changeset,
+                        action: lobby_player_path(@conn, :create, @lobby) %>
+
+<%= link "Back", to: lobby_player_path(@conn, :index, @lobby) %>

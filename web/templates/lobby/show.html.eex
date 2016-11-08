@@ -1,0 +1,56 @@
+<div class="row">
+  <div id="game-client" class="col-xs-8" data-topic="lobby:<%= @lobby.id %>" data-token="<%= @token %>">
+    Please wait, the game is connecting to the real-time lulz server ...
+  </div>
+
+  <div class="col-xs-4 panel panel-default">
+    <h3>lobby info</h3>
+    <ul>
+      <li> <strong>Name:</strong>
+        <%= @lobby.name %>
+      </li>
+
+      <li>
+        <strong>Password:</strong>
+        <%= @lobby.password %>
+      </li>
+
+      <li>
+        <strong>Owner:</strong>
+        <%= @lobby.owner_id %>
+      </li>
+    </ul>
+
+    <h3>player info</h3>
+    <ul>
+      <%= for player <- @lobby.players do %>
+        <li><%= player.name %></li>
+      <% end %>
+    </ul>
+
+
+    <h3>deck information</h3>
+    <ul>
+      <li>
+        <strong>Black (in play)</strong>
+        <%= @lobby.black_deck.cards |> Enum.count %>
+      </li>
+
+      <li>
+        <strong>Black (discard)</strong>
+        <%= @lobby.black_discard.cards |> Enum.count %>
+      </li>
+
+      <li>
+        <strong>White (in play)</strong>
+        <%= @lobby.white_deck.cards |> Enum.count %>
+      </li>
+
+      <li>
+        <strong>White (discard)</strong>
+        <%= @lobby.white_discard.cards |> Enum.count %>
+      </li>
+    </ul>
+
+  </div>
+</div>

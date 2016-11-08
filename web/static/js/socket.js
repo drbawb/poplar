@@ -5,58 +5,58 @@
 // and connect at the socket path in "lib/my_app/endpoint.ex":
 import {Socket} from "phoenix"
 
-let socket = new Socket("/socket", {params: {token: window.userToken}})
+let gameClient = document.querySelector("#game-client");
+let channelId  = gameClient.dataset.topic;
+let tokenId    = gameClient.dataset.token;
 
-// When you connect, you'll often need to authenticate the client.
-// For example, imagine you have an authentication plug, `MyAuth`,
-// which authenticates the session and assigns a `:current_user`.
-// If the current user exists you can assign the user's token in
-// the connection for use in the layout.
-//
-// In your "web/router.ex":
-//
-//     pipeline :browser do
-//       ...
-//       plug MyAuth
-//       plug :put_user_token
-//     end
-//
-//     defp put_user_token(conn, _) do
-//       if current_user = conn.assigns[:current_user] do
-//         token = Phoenix.Token.sign(conn, "user socket", current_user.id)
-//         assign(conn, :user_token, token)
-//       else
-//         conn
-//       end
-//     end
-//
-// Now you need to pass this token to JavaScript. You can do so
-// inside a script tag in "web/templates/layout/app.html.eex":
-//
-//     <script>window.userToken = "<%= assigns[:user_token] %>";</script>
-//
-// You will need to verify the user token in the "connect/2" function
-// in "web/channels/user_socket.ex":
-//
-//     def connect(%{"token" => token}, socket) do
-//       # max_age: 1209600 is equivalent to two weeks in seconds
-//       case Phoenix.Token.verify(socket, "user socket", token, max_age: 1209600) do
-//         {:ok, user_id} ->
-//           {:ok, assign(socket, :user, user_id)}
-//         {:error, reason} ->
-//           :error
-//       end
-//     end
-//
-// Finally, pass the token on connect as below. Or remove it
-// from connect if you don't care about authentication.
+let _promptCard = "";
+let _playerHand = [];
 
-socket.connect()
+function buildCard(style, text) {
+	let cardBlock = document.createElement("div");
+	cardBlock.classList.add("card", `card-${style}`);
+	cardBlock.innerHTML = text;
+	return cardBlock;
+}
 
-// Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("topic:subtopic", {})
+// redraws the client pane based on currently known game state
+function renderGameClient() {
+	gameClient.innerHTML = "";
+
+	let handDiv = document.createElement("div");
+	handDiv.classList.add("player-hand");
+
+	let question = buildCard("black", _promptCard);
+	
+	let cardList = document.createElement("div");
+	_playerHand.forEach((el) => {
+		cardList.append(buildCard("white", el));
+	});
+
+	handDiv.appendChild(question);
+	handDiv.appendChild(cardList);
+	gameClient.appendChild(handDiv);
+}
+
+// connect & auth socket
+let socket = new Socket("/socket", {params: {token: tokenId}})
+socket.connect();
+
+// connect to lobby
+let channel = socket.channel(channelId, {})
 channel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
+
+// server has pubilshed our most recent hand
+channel.on("hand", (payload) => {
+	_promptCard = payload.prompt;
+	_playerHand = payload.cards;
+	renderGameClient();
+});
+
+channel.on("oobping", (payload) => {
+	console.log("got ping from oob");
+});
 
 export default socket

@@ -1,0 +1,32 @@
+<h2>Listing lobbies</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID#</th>
+      <th>Name</th>
+      <th>Password</th>
+      <th>Owner</th>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for lobby <- @lobbies do %>
+    <tr>
+      <td><%= lobby.id %></td>
+      <td><%= lobby.name %></td>
+      <td><%= lobby.password %></td>
+      <td><%= lobby.owner_id %></td>
+
+      <td class="text-right">
+        <%= link "Show", to: lobby_path(@conn, :show, lobby), class: "btn btn-default btn-xs" %>
+        <%= link "Edit", to: lobby_path(@conn, :edit, lobby), class: "btn btn-default btn-xs" %>
+        <%= link "Delete", to: lobby_path(@conn, :delete, lobby), method: :delete, data: [confirm: "Are you sure?"], class: "btn btn-danger btn-xs" %>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<%= link "New lobby", to: lobby_path(@conn, :new) %>

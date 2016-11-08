@@ -1,0 +1,26 @@
+<h2>Listing players</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for player <- @players do %>
+    <tr>
+      <td><%= player.name %></td>
+
+      <td class="text-right">
+        <%= link "Show",   to: lobby_player_path(@conn, :show,   @lobby, player), class: "btn btn-default btn-xs" %>
+        <%= link "Edit",   to: lobby_player_path(@conn, :edit,   @lobby, player), class: "btn btn-default btn-xs" %>
+        <%= link "Delete", to: lobby_player_path(@conn, :delete, @lobby, player), method: :delete, data: [confirm: "Are you sure?"], class: "btn btn-danger btn-xs" %>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<%= link "New player", to: lobby_player_path(@conn, :new, @lobby) %>

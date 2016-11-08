@@ -1,1 +1,21 @@
-/* This file is for your main application css. */
+.card {
+  display: inline-block; vertical-align: bottom;
+  width: 150px; height: 200px;
+  padding: 10px; margin: 5px;
+  
+  border: solid 1px #000;
+  border-radius: 5px;
+  
+  font-size: 1.3em;
+  font-weight: bold;
+}
+
+.card-black {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.card-white {
+  background-color: #ffffff;
+  color: #000000;
+}

@@ -22,6 +22,12 @@
       </main>
 
     </div> <!-- /container -->
+
+    <br><br>
+    <pre><code>
+      DEBUG INFO (SESSION)
+      USER UUID  :: <%= @auth_id %>
+    </code></pre>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

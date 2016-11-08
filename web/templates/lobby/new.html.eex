@@ -1,0 +1,6 @@
+<h2>New lobby</h2>
+
+<%= render "form.html", changeset: @changeset,
+                        action: lobby_path(@conn, :create) %>
+
+<%= link "Back", to: lobby_path(@conn, :index) %>
