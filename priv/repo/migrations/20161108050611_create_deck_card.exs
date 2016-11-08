@@ -2,7 +2,7 @@ defmodule Popura.Repo.Migrations.CreateDeckCard do
   use Ecto.Migration
 
   def change do
-    create table(:deck_cards, primary_key: false) do
+    create table(:deck_cards) do
       add :deck_id, references(:decks, on_delete: :nothing)
       add :card_id, references(:cards, on_delete: :nothing)
     end
