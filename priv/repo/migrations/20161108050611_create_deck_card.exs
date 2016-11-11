@@ -3,8 +3,8 @@ defmodule Popura.Repo.Migrations.CreateDeckCard do
 
   def change do
     create table(:deck_cards) do
-      add :deck_id, references(:decks, on_delete: :nothing)
-      add :card_id, references(:cards, on_delete: :nothing)
+      add :deck_id, references(:decks, on_delete: :delete_all)
+      add :card_id, references(:cards, on_delete: :delete_all)
     end
 
     create index(:deck_cards, [:deck_id])
