@@ -7,7 +7,7 @@ defmodule Popura.Lobby do
     field :owner_id, Ecto.UUID
     field :serv_lock, :boolean
 
-    has_many :players, Popura.Player
+    has_many :players, Popura.Player, on_delete: :delete_all
 
     belongs_to :black_deck,    Popura.Deck, on_replace: :delete
     belongs_to :white_deck,    Popura.Deck, on_replace: :delete

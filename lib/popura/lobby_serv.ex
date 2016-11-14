@@ -107,7 +107,8 @@ defmodule Popura.LobbyServ do
 
       # TODO(hime): cache card bodies to prevent reloading them O(n+1) here ...
       submissions = for {uid, card_ids} <- state.submissions do
-        Repo.all(from c in Card, where: c.id in ^card_ids)
+        card_ids
+        |> Enum.map(fn el -> Repo.get!(Card, el) end)
         |> Enum.map(&json_card/1)
       end
 
@@ -283,28 +284,26 @@ defmodule Popura.LobbyServ do
   end
 
   def handle_call({:submit, user_id, choices}, _from, state) do
+    # load choices, in order, from database
     Logger.debug "user #{inspect user_id} submitted #{inspect choices}"
-    choices = choices |> Enum.map(&String.to_integer/1)
+    lobby  = Repo.one(from l in Lobby, where: l.id == ^state.lobby_id)
+    player = Repo.one(from p in Player, where: p.lobby_id == ^state.lobby_id and p.user_id == ^user_id)
 
-    # first load the players hand and discard the cards
-    lobby = Repo.get!(Lobby, state.lobby_id)
-    player = Repo.one(from p in Player, where: p.user_id == ^user_id and p.lobby_id == ^state.lobby_id)
-    hand = Repo.all(from dc in DeckCard, where: dc.deck_id == ^player.hand_id)
-    |> Repo.preload([:card])
-
-    # boops
-    select_cards = Enum.filter(hand, fn el -> Enum.member?(choices, el.card.id) end)
-    reject_cards = Enum.reject(hand, fn el -> Enum.member?(choices, el.card.id) end)
-    hand_descriptor = Enum.map(reject_cards, fn el -> el.card end) |> Enum.map(&json_card/1)
-
-    Logger.debug "moving selected cards to discard => #{inspect select_cards}"
+    # store the submission in the lobby's non-persistent staging area
+    choices = Enum.map(choices, &String.to_integer/1)
     state = Map.put(state, :submissions, [{user_id, choices} | state.submissions])
-    for card <- select_cards do
-      changeset = DeckCard.changeset(card, %{deck_id: lobby.white_discard_id})
-      |> Repo.update!
-    end
 
-    # send the rejects back to the player
+    # move their choices to the lobbie's white discard pile
+    Logger.debug "moving selected cards to discard => #{inspect choices}"
+    player_hand = from dc in DeckCard, where: dc.deck_id == ^player.hand_id
+    Repo.update_all(player_hand, set: [deck_id: lobby.white_discard_id])
+
+    # send the current hand back to the player
+    hand_descriptor = Repo.all(player_hand) 
+                      |> Repo.preload(:card)
+                      |> Enum.map(fn el -> el.card end) 
+                      |> Enum.map(&json_card/1)
+    
     response = %{cards: hand_descriptor, target: player.user_id}
     Popura.Endpoint.broadcast! ident(state.lobby_id), "confirm", response
 

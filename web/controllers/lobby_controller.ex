@@ -1,9 +1,13 @@
 defmodule Popura.LobbyController do
+  require Logger
+
   use Popura.Web, :controller
 
-  import Ecto.Changeset, only: [put_change: 3]
+  import Ecto.Changeset, only: [put_change: 3, put_assoc: 3]
+  alias Ecto.Multi
   alias Popura.Card
   alias Popura.Deck
+  alias Popura.DeckCard
   alias Popura.Lobby
   alias Popura.Player
 
@@ -114,9 +118,9 @@ defmodule Popura.LobbyController do
 
     # instruct it to start handling events from WS transports
     case GenServer.call({:global, ident}, {:start, lobby.id}) do
-      {:ok, pid} ->
+      :ok ->
         conn
-        |> put_flash(:info, "Server started up: #{inspect msg}")
+        |> put_flash(:info, "Server started up")
         |> redirect(to: lobby_path(conn, :show, lobby))       
 
       {:error, msg} ->
@@ -126,7 +130,7 @@ defmodule Popura.LobbyController do
     end
   end
 
-  def stop(conn, params) do
+  def stop(conn, %{"id" => id} = _params) do
     lobby = Repo.get!(Lobby, id)
     ident = "lobby:#{lobby.id}"
 
@@ -150,7 +154,18 @@ defmodule Popura.LobbyController do
     end
   end
 
-  def reset(conn, params) do
+  # destroys current deck(s) and rebuilds them
+  def reset(conn, %{"id" => id} = _params) do
+    lobby = Repo.one(Lobby.with_decks(from l in Lobby, where: l.id == ^id))
+    Logger.warn "loaded lobby :: #{inspect lobby}"
 
+    # move discards back to normal decks
+    # TODO(hime): doesn't perma-discard winning submissions
+    black_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.black_discard_id
+    white_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.white_discard_id
+    Repo.update_all(black_discards, set: [deck_id: lobby.black_deck_id])
+    Repo.update_all(white_discards, set: [deck_id: lobby.white_deck_id])
+
+    conn |> redirect(to: lobby_path(conn, :show, lobby))
   end
 end
