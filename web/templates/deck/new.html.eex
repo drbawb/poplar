@@ -1,0 +1,6 @@
+<h2>New deck</h2>
+
+<%= render "form.html", changeset: @changeset,
+                        action: deck_path(@conn, :create) %>
+
+<%= link "Back", to: deck_path(@conn, :index) %>

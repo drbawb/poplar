@@ -26,15 +26,21 @@ defmodule Popura.LobbyServ do
   alias Popura.Player
 
   @target_hand_size 10
-  @max_ticks_czar   10
-  @max_ticks_player 10
+  @max_ticks_czar   20
+  @max_ticks_player 30
+  @max_ticks_win    10
 
   def start_link(opts \\ []) do
     default_state = %{
+      black_card: nil,  # start with no chosen prompt
       czar_id:  nil,    # begin with no czar, nil signals random selection
+      czar_idx: nil,
       lobby_id: nil,    # begin with no monitored lobby
       mode: :pick_czar, # game loop starts by choosing a czar
       tick: 0,          # ticks since mode change
+      submissions: [],  # submissions in the format {<player id>, [<cards>, ...]}
+      winner: {"", []}, # winner name & cards
+      winners: [],      # previous winners
     }
 
     GenServer.start_link(__MODULE__, default_state, opts)
@@ -62,15 +68,25 @@ defmodule Popura.LobbyServ do
     %{id: card.id, body: card.body, slots: card.slots}
   end
 
+  # returns true or false if all submissions have been
+  # established for the round
+  defp is_all_submissions_in(state) do
+    expected_submissions = 
+      Lobby.count_players(from l in Lobby,where: l.id == ^state.lobby_id)
+      |> Repo.one
+
+    Enum.count(state.submissions) >= (expected_submissions - 1)
+  end
+
   # mode changes
   # these methods adjust the mode of the lobby, usually based on
   # a timeout or some game logic (e.g: all responses submitted.)
 
   defp do_await_responses(state), do: %{state | tick: 0, mode: :wait_players}
 
-  defp do_player_timeout(state) do
-    if state.tick > @max_ticks_player do
-      %{state | tick: 0, mode: :wait_czar}
+  defp do_announce_timeout(state) do
+    if state.tick > @max_ticks_win do
+      %{state | tick: 0, mode: :pick_czar}
     else
       state
     end
@@ -84,19 +100,39 @@ defmodule Popura.LobbyServ do
     end
   end
 
-  defp do_tick(state), do: %{state | tick: (state.tick + 1)}
+  defp do_player_timeout(state) do
+    if (state.tick > @max_ticks_player) or (is_all_submissions_in(state)) do
+      # ask the czar to pick a thing!
+      lobby = Repo.get!(Lobby, state.lobby_id)
+
+      # TODO(hime): cache card bodies to prevent reloading them O(n+1) here ...
+      submissions = for {uid, card_ids} <- state.submissions do
+        Repo.all(from c in Card, where: c.id in ^card_ids)
+        |> Enum.map(&json_card/1)
+      end
+
+      czar = Repo.one(from p in Player, where: p.id == ^state.czar_id)
+      response = %{cards: submissions, czar_id: czar.id, czar_uid: czar.user_id}
+      Popura.Endpoint.broadcast! ident(lobby.id), "reveal", response
+
+      %{state | tick: 0, mode: :wait_czar}
+    else
+      state
+    end
+  end
+
+  defp do_tick(state) do
+    Popura.Endpoint.broadcast! ident(state.lobby_id), "tick", %{tick_no: state.tick, mode: state.mode}
+    %{state | tick: (state.tick + 1)}
+  end
 
   # ensure each player has 10 cards
   defp do_deal_players(state, lobby, white_cards) do
     Logger.warn "dealing cards ..."
 
-    # deal black card ...
-    black_card = Repo.all(from dc in DeckCard, where: dc.deck_id == ^lobby.black_deck_id)
-    |> Enum.shuffle |> List.first
-    |> DeckCard.changeset(%{deck_id: lobby.black_discard_id})
-    |> Repo.update! |> Repo.preload([:card])
-
-    List.foldl(lobby.players, white_cards, fn (player, white_cards) ->
+    lobby.players
+    |> Enum.reject(fn (player) -> player.id == state.czar_id end)
+    |> List.foldl(white_cards, fn (player, white_cards) ->
       # load the player cards
       hand = if player.hand == nil do
         changeset = Player.changeset(player, %{})
@@ -129,7 +165,7 @@ defmodule Popura.LobbyServ do
 
       # announce player's hand to them ...
       # TODO: goes to shared lobby ...
-      prompt_card = json_card(black_card.card)
+      prompt_card = json_card(state.black_card.card)
       response = %{cards: hand_descriptor, prompt: prompt_card, target: player.user_id}
       Popura.Endpoint.broadcast! ident(lobby.id), "deal", response
       left # yield remaining deck for next player
@@ -138,8 +174,38 @@ defmodule Popura.LobbyServ do
     state
   end
 
+  # selects black card and czar
   defp do_pick_czar(state) do
-    state
+    lobby = Repo.get!(Lobby, state.lobby_id)
+    |> Repo.preload([:players])
+
+    # deal black card ...
+    black_card = Repo.all(from dc in DeckCard, where: dc.deck_id == ^lobby.black_deck_id)
+    |> Enum.shuffle |> List.first
+    |> DeckCard.changeset(%{deck_id: lobby.black_discard_id})
+    |> Repo.update! |> Repo.preload([:card])
+
+    # select from the array in a wrapping fashion
+    czar_len = Enum.count(lobby.players)
+    czar_idx = if is_nil(state.czar_idx), do: 0, else: rem((state.czar_idx+1), czar_len)
+    czar = Enum.at(lobby.players, czar_idx)
+
+    # build scoreboards
+    scoreboard = for player <- lobby.players, into: %{} do
+      total_won = 
+        Enum.filter(state.winners, fn {id,_entry} -> id == player.id end)
+        |> Enum.count
+
+      {player.name, %{rounds_won: total_won, is_czar: (player.id == czar.id)}}
+    end
+
+    Popura.Endpoint.broadcast! ident(lobby.id), "score", scoreboard
+
+    # build czar prompt ui
+    response = %{target: czar.user_id, prompt: json_card(black_card.card)}
+    Popura.Endpoint.broadcast! ident(lobby.id), "czar", response
+
+    %{state | black_card: black_card, czar_id: czar.id, czar_idx: czar_idx, submissions: []}
   end
 
   def handle_info(:tick, state) do
@@ -160,6 +226,10 @@ defmodule Popura.LobbyServ do
       :wait_czar ->
         state
         |> do_czar_timeout()
+
+      :announce_winner ->
+        state
+        |> do_announce_timeout()
 
     end
 
@@ -186,6 +256,32 @@ defmodule Popura.LobbyServ do
     end
   end
 
+  def handle_call({:winner, user_id, choices}, _from, state) do
+    # first we need to figure out who won...
+    choices = choices |> Enum.map(&String.to_integer/1)
+    winner_id = List.foldl(state.submissions, nil, fn {uid,cards}, acc ->
+      acc || (if Enum.sort(cards) == Enum.sort(choices), do: uid, else: nil)
+    end)
+
+    Logger.warn "picking winner: #{inspect winner_id}"
+    winner  = Repo.one(from p in Player, where: p.user_id == ^winner_id)
+    choices = choices
+      |> Enum.map(fn el -> Repo.get!(Card, el) end)
+      |> Enum.map(&json_card/1)
+
+    # announce the winner
+    response = %{winner: winner.name, choices: choices}
+    Popura.Endpoint.broadcast! ident(state.lobby_id), "announce", response
+
+    # store the winner
+    state = %{state | tick: 0, mode: :announce_winner}
+    state = %{state | winner: {winner.name, choices}}
+    state = %{state | winners: [{winner.id, choices} | state.winners]}
+
+    # enter announce timeout
+    {:reply, :ok, state}
+  end
+
   def handle_call({:submit, user_id, choices}, _from, state) do
     Logger.debug "user #{inspect user_id} submitted #{inspect choices}"
     choices = choices |> Enum.map(&String.to_integer/1)
@@ -202,6 +298,7 @@ defmodule Popura.LobbyServ do
     hand_descriptor = Enum.map(reject_cards, fn el -> el.card end) |> Enum.map(&json_card/1)
 
     Logger.debug "moving selected cards to discard => #{inspect select_cards}"
+    state = Map.put(state, :submissions, [{user_id, choices} | state.submissions])
     for card <- select_cards do
       changeset = DeckCard.changeset(card, %{deck_id: lobby.white_discard_id})
       |> Repo.update!

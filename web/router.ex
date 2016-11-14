@@ -21,6 +21,13 @@ defmodule Popura.Router do
     pipe_through [:browser, :core] # Use the default browser stack
 
     get "/", PageController, :index
+    resources "/decks", DeckController
+
+    # TODO(hime): admin access, better routes
+    get "/lobbies/:id/start", LobbyController, :start
+    get "/lobbies/:id/stop",  LobbyController, :stop
+    get "/lobbies/:id/reset", LobbyController, :reset
+
     resources "/lobbies", LobbyController do
       resources "/players", PlayerController
     end

@@ -1,0 +1,27 @@
+<h2>Listing decks</h2>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID#</th>
+      <th>Name</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <%= for deck <- @decks do %>
+      <tr>
+        <td><%= deck.id %></td>
+        <td><%= deck.name %></td>
+
+        <td class="text-right">
+          <%= link "Show", to: deck_path(@conn, :show, deck), class: "btn btn-default btn-xs" %>
+          <%= link "Edit", to: deck_path(@conn, :edit, deck), class: "btn btn-default btn-xs" %>
+          <%= link "Delete", to: deck_path(@conn, :delete, deck), method: :delete, data: [confirm: "Are you sure?"], class: "btn btn-danger btn-xs" %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<%= link "New deck", to: deck_path(@conn, :new) %>

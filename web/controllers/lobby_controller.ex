@@ -64,8 +64,7 @@ defmodule Popura.LobbyController do
               |> Repo.preload([black_deck: :cards, white_deck: :cards])
               |> Repo.preload([black_discard: :cards, white_discard: :cards])
 
-
-      render(conn, "show.html", lobby: lobby, token: token)
+      render(conn, "show.html", lobby: lobby, token: token, is_admin: (user_id == lobby.owner_id))
     end
   end
 
@@ -99,5 +98,59 @@ defmodule Popura.LobbyController do
     conn
     |> put_flash(:info, "Lobby deleted successfully.")
     |> redirect(to: lobby_path(conn, :index))
+  end
+
+  # TODO(hime): non-standard actions for controlling associated LobbyServ
+
+  @doc """
+  Starts a LobbyServ in the global namespace if possible.
+  """
+  def start(conn, %{"id" => id} = _params) do
+    lobby = Repo.get!(Lobby, id)
+    ident = "lobby:#{lobby.id}"
+
+    # start a process to monitor this lobby
+    Popura.LobbyServ.start_link [name: {:global, ident}]
+
+    # instruct it to start handling events from WS transports
+    case GenServer.call({:global, ident}, {:start, lobby.id}) do
+      {:ok, pid} ->
+        conn
+        |> put_flash(:info, "Server started up: #{inspect msg}")
+        |> redirect(to: lobby_path(conn, :show, lobby))       
+
+      {:error, msg} ->
+        conn
+        |> put_flash(:error, "Could not start server: #{inspect msg}")
+        |> redirect(to: lobby_path(conn, :show, lobby))
+    end
+  end
+
+  def stop(conn, params) do
+    lobby = Repo.get!(Lobby, id)
+    ident = "lobby:#{lobby.id}"
+
+    status = GenServer.stop({:global, ident})
+
+    status = lobby
+    |> Lobby.changeset
+    |> put_change(:serv_lock, false)
+    |> Repo.update
+
+    case status do
+      {:ok, _lobby} ->
+        conn
+        |> put_flash(:info, "Server stopped ok and unlocked")
+        |> redirect(to: lobby_path(conn, :show, lobby))
+
+      {:error, msg} ->
+        conn
+        |> put_flash(:error, "Server could not stop because: #{inspect msg}")
+        |> redirect(to: lobby_path(conn, :show, lobby))
+    end
+  end
+
+  def reset(conn, params) do
+
   end
 end

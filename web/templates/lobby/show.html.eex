@@ -1,3 +1,13 @@
+<%= if @is_admin do %>
+  <div class="row">
+    <div class="col-xs-6">
+      <%= link "Start", to: lobby_path(@conn, :start, @lobby), class: "btn btn-success" %>
+      <%= link "Stop",  to: lobby_path(@conn, :stop,  @lobby), class: "btn btn-danger"  %>
+      <%= link "Reset", to: lobby_path(@conn, :reset, @lobby), class: "btn btn-warning" %>
+    </div>
+  </div>
+<% end %>
+
 <div class="row">
   <div id="game-client" class="col-xs-8" data-topic="lobby:<%= @lobby.id %>" data-token="<%= @token %>">
     Please wait, the game is connecting to the real-time lulz server ...
@@ -6,7 +16,13 @@
   <div class="col-xs-4 panel panel-default">
     <h3>lobby info</h3>
     <ul>
-      <li> <strong>Name:</strong>
+      <li>
+        <strong>Tick: </strong>
+        <span id="game-timer"></span>
+      </li>
+
+      <li>
+        <strong>Name:</strong>
         <%= @lobby.name %>
       </li>
 
@@ -22,12 +38,7 @@
     </ul>
 
     <h3>player info</h3>
-    <ul>
-      <%= for player <- @lobby.players do %>
-        <li><%= player.name %></li>
-      <% end %>
-    </ul>
-
+    <div id="player-info">Pending ...</div>
 
     <h3>deck information</h3>
     <ul>
