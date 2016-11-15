@@ -3,6 +3,7 @@ defmodule Popura.Router do
 
   pipeline :core do
     plug Popura.Auth
+    plug RemoteIp
   end
 
   pipeline :browser do
