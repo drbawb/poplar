@@ -129,7 +129,7 @@ defmodule Popura.LobbyServ do
 
   # ensure each player has 10 cards
   defp do_deal_players(state, lobby, white_cards) do
-    Logger.warn "dealing cards ..."
+    Logger.debug "dealing cards ..."
 
     lobby.players
     |> Enum.reject(fn (player) -> player.id == state.czar_id end)
@@ -264,7 +264,7 @@ defmodule Popura.LobbyServ do
       acc || (if Enum.sort(cards) == Enum.sort(choices), do: uid, else: nil)
     end)
 
-    Logger.warn "picking winner: #{inspect winner_id}"
+    Logger.debug "picking winner: #{inspect winner_id}"
     winner  = Repo.one(from p in Player, where: p.user_id == ^winner_id)
     choices = choices
       |> Enum.map(fn el -> Repo.get!(Card, el) end)
@@ -275,9 +275,11 @@ defmodule Popura.LobbyServ do
     Popura.Endpoint.broadcast! ident(state.lobby_id), "announce", response
 
     # store the winner
-    state = %{state | tick: 0, mode: :announce_winner}
-    state = %{state | winner: {winner.name, choices}}
-    state = %{state | winners: [{winner.id, choices} | state.winners]}
+    # change state to announce winner phase
+    state = state
+      |> Map.merge(%{tick: 0, mode: :announce_winner})
+      |> Map.merge(%{winner: {winner.name, choices}})
+      |> Map.merge(%{winners: [{winner.id, choices} | state.winners]})
 
     # enter announce timeout
     {:reply, :ok, state}
@@ -295,7 +297,7 @@ defmodule Popura.LobbyServ do
 
     # move their choices to the lobbie's white discard pile
     Logger.debug "moving selected cards to discard => #{inspect choices}"
-    player_hand = from dc in DeckCard, where: dc.deck_id == ^player.hand_id
+    player_hand = from dc in DeckCard, where: dc.deck_id == ^player.hand_id and dc.card_id in ^choices
     Repo.update_all(player_hand, set: [deck_id: lobby.white_discard_id])
 
     # send the current hand back to the player
