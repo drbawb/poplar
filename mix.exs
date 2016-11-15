@@ -3,7 +3,7 @@ defmodule Popura.Mixfile do
 
   def project do
     [app: :popura,
-     version: "0.0.1",
+     version: "0.1.0",
      elixir: "~> 1.2",
      elixirc_paths: elixirc_paths(Mix.env),
      compilers: [:phoenix, :gettext] ++ Mix.compilers,
@@ -37,7 +37,8 @@ defmodule Popura.Mixfile do
      {:phoenix_html, "~> 2.6"},
      {:phoenix_live_reload, "~> 1.0", only: :dev},
      {:gettext, "~> 0.11"},
-     {:cowboy, "~> 1.0"}]
+     {:cowboy, "~> 1.0"},
+     {:remote_ip, "~> 0.1"}]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
