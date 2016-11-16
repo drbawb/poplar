@@ -5,6 +5,8 @@ defmodule Popura.Card do
     field :body, :string
     field :slots, :integer
 
+    belongs_to :deck, Popura.Deck
+
     timestamps()
   end
 

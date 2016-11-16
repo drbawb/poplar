@@ -3,8 +3,8 @@ defmodule Popura.Deck do
 
   schema "decks" do
     field :name, :string
-    field :is_generated, :boolean
-    many_to_many(:cards, Popura.Card, join_through: Popura.DeckCard)
+
+    has_many :cards, Popura.Card, on_delete: :delete_all
     timestamps()
   end
 
@@ -13,7 +13,7 @@ defmodule Popura.Deck do
   """
   def changeset(struct, params \\ %{}) do
     struct
-    |> cast(params, [:name, :is_generated])
+    |> cast(params, [:name])
     |> validate_required([:name])
   end
 end
