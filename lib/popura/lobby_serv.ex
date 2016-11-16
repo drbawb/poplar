@@ -120,9 +120,14 @@ defmodule Popura.LobbyServ do
       Repo.get!(Lobby, state.lobby_id)
       |> Repo.preload([:players])
 
-    white_cards = Repo.all(
-      from lc in LobbyCard,
-      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_deck)
+    white_cards =
+      from(lc in LobbyCard,
+      where:
+        lc.lobby_id == ^lobby.id
+        and lc.tag == ^Lobby.white_deck)
+      |> Repo.all
+      |> Enum.shuffle
+
 
     lobby.players
     |> Enum.reject(fn (player) -> player.id == state.czar_id end)
@@ -140,8 +145,8 @@ defmodule Popura.LobbyServ do
 
       lobby_cards = from(
         lc in LobbyCard,
-        where: 
-          lc.lobby_id == ^lobby.id 
+        where:
+          lc.lobby_id == ^lobby.id
           and lc.tag  == ^Lobby.white_deck
           and lc.card_id in ^taken_ids)
 
@@ -151,15 +156,15 @@ defmodule Popura.LobbyServ do
         Multi.new
         |> Multi.delete_all(:lobby_cards, lobby_cards)
         |> Multi.insert_all(:player_cards, PlayerCard, taken_assigns)
-        
+
       {:ok, _multi} = Repo.transaction(multi)
 
       Logger.info "player hand dealt OK"
       hand =
-        player 
-        |> Repo.preload([:cards]) 
+        player
+        |> Repo.preload([:cards])
         |> Repo.preload([cards: :card])
-    
+
       hand_descriptor =
         hand.cards
         |> Enum.map(fn el -> el.card end)
