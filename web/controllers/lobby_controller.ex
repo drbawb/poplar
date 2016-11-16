@@ -170,10 +170,16 @@ defmodule Popura.LobbyController do
 
     # move discards back to normal decks
     # TODO(hime): doesn't perma-discard winning submissions
-    black_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.black_discard_id
-    white_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.white_discard_id
-    Repo.update_all(black_discards, set: [deck_id: lobby.black_deck_id])
-    Repo.update_all(white_discards, set: [deck_id: lobby.white_deck_id])
+    black_discards = 
+      from lc in LobbyCard,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_discard
+
+    white_discards = 
+      from lc in LobbyCard,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_discard
+
+    Repo.update_all(black_discards, set: [tag: Lobby.black_deck])
+    Repo.update_all(white_discards, set: [tag: Lobby.white_deck])
 
     conn |> redirect(to: lobby_path(conn, :show, lobby))
   end
