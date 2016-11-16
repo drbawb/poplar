@@ -137,7 +137,7 @@ defmodule Popura.LobbyServ do
       # load the player cards
       hand = if player.hand == nil do
         changeset = Player.changeset(player, %{})
-        |> put_assoc(:hand, %Deck{})
+        |> put_assoc(:hand, %Deck{name: "player", is_generated: true})
         |> Repo.update!()
         |> Repo.preload([:hand, hand: :cards])
 

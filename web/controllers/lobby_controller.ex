@@ -30,10 +30,10 @@ defmodule Popura.LobbyController do
     white_cards = all_cards.cards |> Enum.filter(fn el -> el.slots == 0 end)
 
     # build some decks
-    black_discard = Deck.changeset(%Deck{name: "sys", cards: []}, %{}) |> Repo.insert!
-    white_discard = Deck.changeset(%Deck{name: "sys", cards: []}, %{}) |> Repo.insert!
-    black_cards   = Deck.changeset(%Deck{name: "sys", cards: black_cards}, %{}) |> Repo.insert!
-    white_cards   = Deck.changeset(%Deck{name: "sys", cards: white_cards}, %{}) |> Repo.insert!
+    black_discard = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: []}, %{}) |> Repo.insert!
+    white_discard = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: []}, %{}) |> Repo.insert!
+    black_cards   = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: black_cards}, %{}) |> Repo.insert!
+    white_cards   = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: white_cards}, %{}) |> Repo.insert!
 
     # build the lobby
     changeset = Lobby.changeset(%Lobby{
