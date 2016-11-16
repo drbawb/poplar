@@ -23,6 +23,8 @@ let _submissions  = [];
 function buildCard(style, text) {
 	let cardBlock = document.createElement("div");
 	cardBlock.classList.add("card", `card-${style}`);
+	if (text.length > 75) { cardBlock.classList.add("card-wordy"); }
+
 	cardBlock.innerHTML = text;
 	return cardBlock;
 }
@@ -165,9 +167,9 @@ function renderSubmissions() {
 				for (let i = 0; i < pair.length; i++) {
 					let el = pair[i];
 					_choices.push(el.dataset.id); 
+					el.classList.add("chosen");
 				}
 
-				pairNode.style = "background-color: #00ff00;"
 				channel.push("declare", {choices: _choices});
 			});
 		});

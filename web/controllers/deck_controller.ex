@@ -13,10 +13,14 @@ defmodule Popura.DeckController do
   end
 
   def show(conn, %{"id" => deck_id} = _params) do
-    deck = Repo.get!(Deck, deck_id)
+    deck = Repo.get!(Deck, deck_id) |> Repo.preload(:cards)
+    black_cards = deck.cards |> Enum.filter(fn el -> el.slots > 0 end)
+    white_cards = deck.cards |> Enum.reject(fn el -> el.slots > 0 end)
 
     conn
     |> assign(:deck, deck)
+    |> assign(:black_cards, black_cards)
+    |> assign(:white_cards, white_cards)
     |> render("show.html")
   end
 

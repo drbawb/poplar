@@ -10,6 +10,15 @@ defmodule Popura.Util do
   import Ecto.Changeset, only: [put_assoc: 3, put_change: 3]
   require Logger
 
+  @moduledoc """
+  This module is useful for development and administration of the
+  poplar card server.
+
+  This includes facilities for loading plaintext card DBs,
+  fixing up bad decks, copying cards to decks, etc.
+  """
+
+
   @black_path "priv/questions.txt"
   @white_path "priv/answers.txt"
 
@@ -107,5 +116,27 @@ defmodule Popura.Util do
     |> Lobby.changeset
     |> put_change(:serv_lock, false)
     |> Repo.update
+  end
+
+  def fix_html_ents(deck_id) do
+    deck = 
+      (from d in Deck, where: d.id == ^deck_id,
+      join: c in assoc(d, :cards),
+      preload: [cards: c]) |> Repo.one
+
+      bad_cards = Enum.filter(deck.cards, &String.contains?(&1.body, "&#"))
+      Logger.debug "#{Enum.count bad_cards} bad cards ..."
+
+      for card <- bad_cards do
+        fixed = card.body
+        |> String.replace("&#34;", "\"")
+        |> String.replace("&#174;", "®")
+
+        card
+        |> Card.changeset
+        |> put_change(:body, fixed)
+        |> Repo.update
+      end
+
   end
 end
