@@ -64,45 +64,6 @@ defmodule Popura.Util do
     Logger.debug "white res ok... #{white_count}"
   end
 
-
-  # takes a deck of black/white cards and sorts
-  # them intop iles for a lobby
-  def build_decks(deck_id, lobby_id) do
-    full_deck  = Repo.all(from d in Deck,  preload: :cards, where: d.id == ^deck_id) |> List.first
-    black_deck = full_deck.cards |> Enum.filter(fn el -> el.slots >  0 end)
-    white_deck = full_deck.cards |> Enum.filter(fn el -> el.slots == 0 end)
-
-    white_pile = Repo.insert!(%Deck{cards: white_deck})
-    black_pile = Repo.insert!(%Deck{cards: black_deck})
-    white_disc = Repo.insert!(%Deck{cards: []})
-    black_disc = Repo.insert!(%Deck{cards: []})
-
-    lobby = Repo.all(from l in Lobby, 
-      preload: [:black_deck, :black_discard, :white_deck, :white_discard]) |> List.first
-
-    Lobby.changeset(lobby)
-    |> put_assoc(:black_deck, black_pile)
-    |> put_assoc(:white_deck, white_pile)
-    |> put_assoc(:black_discard, black_disc)
-    |> put_assoc(:white_discard, white_disc)
-    |> Repo.update!
-
-
-    Logger.debug "done loading decks to lobby ..."
-  end
-
-  # quickly (?) copies a list of card IDs into a new deck
-  # then returns that deck...
-  def copy_cards(card_ids) when is_list(card_ids) do
-    new_deck = Deck.changeset(%Deck{}, %{name: "sys"})
-    |> Repo.insert!()
-
-    records = Enum.map(card_ids, fn el -> [deck_id: new_deck.id, card_id: el] end)
-    Repo.insert_all(DeckCard, records)
-
-    new_deck
-  end
-
   @doc "Boot a lobby"
   def boot(lobby_id) do
     lpid = {:global, "lobby:#{lobby_id}"}
