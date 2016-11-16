@@ -5,7 +5,7 @@ defmodule Popura.Repo.Migrations.CreatePlayer do
     create table(:players) do
       add :name, :string
       add :user_id, :uuid
-      add :lobby_id, references(:lobbies, on_delete: :nothing)
+      add :lobby_id, references(:lobbies, on_delete: :delete_all)
 
       timestamps()
     end
