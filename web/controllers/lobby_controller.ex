@@ -6,8 +6,8 @@ defmodule Popura.LobbyController do
   import Ecto.Changeset, only: [put_change: 3, put_assoc: 3]
   alias Ecto.Multi
   alias Popura.Card
-  alias Popura.Deck
-  alias Popura.DeckCard
+  alias Popura.Deck 
+  alias Popura.LobbyCard
   alias Popura.Lobby
   alias Popura.Player
 
@@ -23,32 +23,44 @@ defmodule Popura.LobbyController do
 
   def create(conn, %{"lobby" => lobby_params}) do
     
-    # load and sort cards
+    # preload selected decks ...
     {deck_id,lobby_params} = Map.pop(lobby_params, "deck_id")
-    all_cards   = Repo.get!(Deck, deck_id) |> Repo.preload([:cards])
-    black_cards = all_cards.cards |> Enum.filter(fn el -> el.slots >= 1 end)
-    white_cards = all_cards.cards |> Enum.filter(fn el -> el.slots == 0 end)
-
-    # build some decks
-    black_discard = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: []}, %{}) |> Repo.insert!
-    white_discard = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: []}, %{}) |> Repo.insert!
-    black_cards   = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: black_cards}, %{}) |> Repo.insert!
-    white_cards   = Deck.changeset(%Deck{is_generated: true, name: "sys", cards: white_cards}, %{}) |> Repo.insert!
+    all_cards = Repo.get!(Deck, deck_id) |> Repo.preload([:cards])
 
     # build the lobby
-    changeset = Lobby.changeset(%Lobby{
-      black_deck: black_cards,
-      white_deck: white_cards,
-      black_discard: black_discard,
-      white_discard: white_discard}, lobby_params)
+    changeset = Lobby.changeset(%Lobby{}, lobby_params)
 
-    case Repo.insert(changeset) do
-      {:ok, _lobby} ->
+    # create lobby & assign decks atomically
+    multi = 
+      Ecto.Multi.new
+      |> Ecto.Multi.insert(:lobby, changeset)
+      |> Ecto.Multi.run(:cards, fn changeset -> 
+        lobby_id = changeset.lobby.id
+        cards = all_cards.cards |> Enum.map(fn el ->
+          tag = if el.slots > 0, do: Lobby.black_deck, else: Lobby.white_deck
+          [card_id: el.id, lobby_id: lobby_id, tag: tag]
+        end)
+
+        {count, _records} = Repo.insert_all(LobbyCard, cards)
+        {:ok, count}
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, %{lobby: _lobby, cards: _cards}} ->
         conn
         |> put_flash(:info, "Lobby created successfully.")
         |> redirect(to: lobby_path(conn, :index))
-      {:error, changeset} ->
+
+      {:error, :lobby, changeset, _prior} ->
+        Logger.warn "TXN Error building lobby"
         render(conn, "new.html", changeset: changeset)
+
+      {:error, key, reason, _prior} ->
+        Logger.warn "TXN Error [#{inspect key}] => #{inspect reason}"
+
+        conn
+        |> put_flash(:error, "There was an error loading the selected deck. Please bug an admin.")
+        |> render("new.html", changeset: changeset)
     end
   end
 
@@ -63,10 +75,7 @@ defmodule Popura.LobbyController do
     else
       token = Phoenix.Token.sign(Popura.Endpoint, "user", user_id)
       lobby = Repo.get!(Lobby, id) 
-              |> Repo.preload([:players])
-              |> Repo.preload([:black_deck, :white_deck, :black_discard, :white_discard])
-              |> Repo.preload([black_deck: :cards, white_deck: :cards])
-              |> Repo.preload([black_discard: :cards, white_discard: :cards])
+              |> Repo.preload([:players, :cards])
 
       render(conn, "show.html", lobby: lobby, token: token, is_admin: (user_id == lobby.owner_id))
     end
@@ -161,10 +170,16 @@ defmodule Popura.LobbyController do
 
     # move discards back to normal decks
     # TODO(hime): doesn't perma-discard winning submissions
-    black_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.black_discard_id
-    white_discards = from dc in DeckCard, where: dc.deck_id == ^lobby.white_discard_id
-    Repo.update_all(black_discards, set: [deck_id: lobby.black_deck_id])
-    Repo.update_all(white_discards, set: [deck_id: lobby.white_deck_id])
+    black_discards = 
+      from lc in LobbyCard,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_discard
+
+    white_discards = 
+      from lc in LobbyCard,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_discard
+
+    Repo.update_all(black_discards, set: [tag: Lobby.black_deck])
+    Repo.update_all(white_discards, set: [tag: Lobby.white_deck])
 
     conn |> redirect(to: lobby_path(conn, :show, lobby))
   end

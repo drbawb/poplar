@@ -6,8 +6,8 @@ defmodule Popura.Player do
     field :name, :string
     field :user_id, Ecto.UUID
 
-    belongs_to :hand,  Popura.Deck
     belongs_to :lobby, Popura.Lobby
+    has_many   :cards, Popura.PlayerCard, on_delete: :delete_all
 
     timestamps()
   end

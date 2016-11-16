@@ -18,12 +18,13 @@ defmodule Popura.LobbyServ do
 
   import Ecto.Changeset, only: [put_assoc: 3]
 
+  alias Ecto.Multi
   alias Popura.Repo
   alias Popura.Card
-  alias Popura.Deck
-  alias Popura.DeckCard
   alias Popura.Lobby
+  alias Popura.LobbyCard
   alias Popura.Player
+  alias Popura.PlayerCard
 
   @target_hand_size 10
   @max_ticks_czar   20
@@ -47,22 +48,6 @@ defmodule Popura.LobbyServ do
   end
 
   def init(args), do: {:ok, args}
-
-  # utility helpers
-  # load game state from DB
-  # should probably make an "assigns" type setup
-
-  # load DeckCard pointers for cheap hand rearranging
-  defp inflate_white_deck(lobby_id) do
-    lobby = Repo.get!(Lobby, lobby_id)
-    deck  = Repo.all(from dc in DeckCard, where: dc.deck_id == ^lobby.white_deck_id)
-    |> Repo.preload([:card])
-  end
-
-  # lod lobby & players
-  defp inflate_lobby(lobby_id) do
-    lobby = Repo.get!(Lobby, lobby_id) |> Repo.preload([:players, players: :hand])
-  end
 
   defp json_card(card) do
     %{id: card.id, body: card.body, slots: card.slots}
@@ -128,48 +113,66 @@ defmodule Popura.LobbyServ do
   end
 
   # ensure each player has 10 cards
-  defp do_deal_players(state, lobby, white_cards) do
+  defp do_deal_players(state) do
     Logger.debug "dealing cards ..."
+
+    lobby = 
+      Repo.get!(Lobby, state.lobby_id)
+      |> Repo.preload([:players])
+
+    white_cards = Repo.all(
+      from lc in LobbyCard,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_deck)
 
     lobby.players
     |> Enum.reject(fn (player) -> player.id == state.czar_id end)
     |> List.foldl(white_cards, fn (player, white_cards) ->
-      # load the player cards
-      hand = if player.hand == nil do
-        changeset = Player.changeset(player, %{})
-        |> put_assoc(:hand, %Deck{name: "player", is_generated: true})
-        |> Repo.update!()
-        |> Repo.preload([:hand, hand: :cards])
-
-        changeset.hand
-      else
-        player.hand |> Repo.preload([:cards])
-      end
+      # load the player cards (TODO: preload earlier?)
+      hand = player |> Repo.preload([:cards])
 
       # count cards and take number to replenish
       total_cards   = Enum.count(hand.cards)
       missing_cards = @target_hand_size - total_cards
       {taken,left}  = Enum.split(white_cards, missing_cards)
 
-      # swap card pointers
-      taken = for card_ptr <- taken do
-        DeckCard.changeset(card_ptr, %{deck_id: hand.id})
-        |> Repo.update!
+      taken_ids = Enum.map(taken, fn el -> el.card_id end)
+      taken_assigns = Enum.map(taken, fn el -> [card_id: el.card_id, player_id: player.id] end)
 
-        card_ptr.card
-      end
+      lobby_cards = from(
+        lc in LobbyCard,
+        where: 
+          lc.lobby_id == ^lobby.id 
+          and lc.tag  == ^Lobby.white_deck
+          and lc.card_id in ^taken_ids)
 
-      # build json representation of new hand ...
+      # delete taken lobby cards
+      # insert corresponding cards in player hand
+      multi =
+        Multi.new
+        |> Multi.delete_all(:lobby_cards, lobby_cards)
+        |> Multi.insert_all(:player_cards, PlayerCard, taken_assigns)
+        
+      {:ok, _multi} = Repo.transaction(multi)
+
+      Logger.info "player hand dealt OK"
+      hand =
+        player 
+        |> Repo.preload([:cards]) 
+        |> Repo.preload([cards: :card])
+    
       hand_descriptor =
-        Enum.map(hand.cards, &json_card/1) ++
-        Enum.map(taken, &json_card/1)
+        hand.cards
+        |> Enum.map(fn el -> el.card end)
+        |> Enum.map(&json_card/1)
+
+      Logger.warn "inspecting hand descriptor: #{inspect hand_descriptor}"
 
       # announce player's hand to them ...
-      # TODO: goes to shared lobby ...
       prompt_card = json_card(state.black_card.card)
       response = %{cards: hand_descriptor, prompt: prompt_card, target: player.user_id}
       Popura.Endpoint.broadcast! ident(lobby.id), "deal", response
-      left # yield remaining deck for next player
+
+      left
     end)
 
     state
@@ -181,9 +184,9 @@ defmodule Popura.LobbyServ do
     |> Repo.preload([:players])
 
     # deal black card ...
-    black_card = Repo.all(from dc in DeckCard, where: dc.deck_id == ^lobby.black_deck_id)
+    black_card = Repo.all(from lc in LobbyCard, where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_deck)
     |> Enum.shuffle |> List.first
-    |> DeckCard.changeset(%{deck_id: lobby.black_discard_id})
+    |> LobbyCard.changeset(%{tag: Lobby.black_discard})
     |> Repo.update! |> Repo.preload([:card])
 
     # select from the array in a wrapping fashion
@@ -212,12 +215,9 @@ defmodule Popura.LobbyServ do
   def handle_info(:tick, state) do
     state = case state.mode do
       :pick_czar ->
-        lobby      = inflate_lobby(state.lobby_id)
-        white_deck = inflate_white_deck(state.lobby_id)
-
         state
         |> do_pick_czar()
-        |> do_deal_players(lobby, white_deck)
+        |> do_deal_players()
         |> do_await_responses()
 
       :wait_players ->
@@ -297,10 +297,27 @@ defmodule Popura.LobbyServ do
 
     # move their choices to the lobbie's white discard pile
     Logger.debug "moving selected cards to discard => #{inspect choices}"
-    player_hand = from dc in DeckCard, where: dc.deck_id == ^player.hand_id and dc.card_id in ^choices
-    Repo.update_all(player_hand, set: [deck_id: lobby.white_discard_id])
+    player_discards = 
+      from pc in PlayerCard,
+      where: pc.player_id == ^player.id
+      and pc.card_id in ^choices
+
+    lobby_discards = Enum.map(choices, fn el ->
+      [card_id: el, lobby_id: lobby.id, tag: Lobby.black_discard]
+    end)
+
+    multi =
+      Multi.new
+      |> Multi.delete_all(:player_cards, player_discards)
+      |> Multi.insert_all(:lobby_cards, LobbyCard, lobby_discards)
+
+    {:ok, _multi} = Repo.transaction(multi)
 
     # send the current hand back to the player
+    player_hand = 
+      from pc in PlayerCard,
+      where: pc.player_id == ^player.id
+
     hand_descriptor = Repo.all(player_hand) 
                       |> Repo.preload(:card)
                       |> Enum.map(fn el -> el.card end) 
