@@ -44,22 +44,22 @@
     <ul>
       <li>
         <strong>Black (in play)</strong>
-        <%= @lobby.black_deck.cards |> Enum.count %>
+        <%= count_black(@lobby.cards) %>
       </li>
 
       <li>
         <strong>Black (discard)</strong>
-        <%= @lobby.black_discard.cards |> Enum.count %>
+        <%= count_black_discard(@lobby.cards) %>
       </li>
 
       <li>
         <strong>White (in play)</strong>
-        <%= @lobby.white_deck.cards |> Enum.count %>
+        <%= count_white(@lobby.cards) %>
       </li>
 
       <li>
         <strong>White (discard)</strong>
-        <%= @lobby.white_discard.cards |> Enum.count %>
+        <%= count_white_discard(@lobby.cards) %>
       </li>
     </ul>
 
