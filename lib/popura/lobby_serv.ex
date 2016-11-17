@@ -27,9 +27,9 @@ defmodule Popura.LobbyServ do
   alias Popura.Player
 
   @target_hand_size 10
-  @max_ticks_czar   20
-  @max_ticks_player 30
-  @max_ticks_win    10
+  @max_ticks_czar   15
+  @max_ticks_player 15
+  @max_ticks_win    05
 
   def start_link(opts \\ []) do
     default_state = %{
@@ -39,6 +39,7 @@ defmodule Popura.LobbyServ do
       lobby_id: nil,    # begin with no monitored lobby
       mode: :pick_czar, # game loop starts by choosing a czar
       tick: 0,          # ticks since mode change
+      player_count: 0,  # number of players dealt in this round ...
       submissions: [],  # submissions in the format {<player id>, [<cards>, ...]}
       winner: {"", []}, # winner name & cards
       winners: [],      # previous winners
@@ -56,11 +57,7 @@ defmodule Popura.LobbyServ do
   # returns true or false if all submissions have been
   # established for the round
   defp is_all_submissions_in(state) do
-    expected_submissions = 
-      Lobby.count_players(from l in Lobby,where: l.id == ^state.lobby_id)
-      |> Repo.one
-
-    Enum.count(state.submissions) >= (expected_submissions - 1)
+    Enum.count(state.submissions) >= (state.player_count - 1)
   end
 
   # mode changes
@@ -189,7 +186,7 @@ defmodule Popura.LobbyServ do
       left
     end)
 
-    state
+    %{state | player_count: Enum.count(lobby.players)}
   end
 
   # selects black card and czar
@@ -321,7 +318,7 @@ defmodule Popura.LobbyServ do
       where: cp.player_id == ^player.id
       and cp.card_id in ^choices
 
-    Repo.update_all(player_discards, set: [lobby_id: lobby.id, tag: Lobby.white_discard])
+    Repo.update_all(player_discards, set: [lobby_id: lobby.id, player_id: nil, tag: Lobby.white_discard])
 
     # send the current hand back to the player
     player_hand = 
