@@ -22,7 +22,30 @@
 
   <div class="col-sm-4">
     <h3>Join a Lobby</h3>
-    <p>The host of your game will provide you with a link
-     to join the lobby server.</p>
+    <p>Below is a list of lobbies which are open.</p>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID #</th>
+          <th>Name</th>
+          <th></th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <%= for lobby <- @lobbies do %>
+          <tr>
+            <td><%= lobby.id %></td>
+            <td><%= lobby.name %></td>
+            <td>
+              <%= link "Join",
+                to: lobby_path(@conn, :show, lobby),
+                class: "btn btn-xs btn-default" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
   </div>
 </div>

@@ -92,7 +92,7 @@ defmodule Popura.LobbyController do
     user_id = get_session(conn, :auth_id)
     lobby =
       from(l in Lobby, where: l.id == ^id,
-      join: p in assoc(l, :players),
+      left_join: p in assoc(l, :players),
       preload: [players: p])
       |> Repo.one()
 
@@ -105,7 +105,7 @@ defmodule Popura.LobbyController do
     else
       conn
       |> put_flash(:info, "You are not a member of that lobby.")
-      |> redirect(to: lobby_path(conn, :index))
+      |> redirect(to: lobby_player_path(conn, :new, lobby))
     end
   end
 
