@@ -12,7 +12,6 @@
   font-family:helvetica,Helvetica,sans-serif;
   font-weight: bold;
   font-size: 1.2em;
-  word-wrap:break-word;
   
   user-select:none;
   cursor:pointer;
@@ -48,4 +47,30 @@
 
 .card-wordy {
   font-size: 1em;
+}
+
+span.card-blank {
+  display: inline-block;
+  border-bottom: 1px #ffffff solid;
+  width: 4em;
+}
+
+.czar-border {
+  padding: 5px;
+  border: 1px #ff0000 solid;
+}
+
+.funky {
+	display: inline-block;
+    background: linear-gradient(
+      90deg,
+      #f22   0%, #f2f  15%, #22f  30%,
+      #2ff  45%, #2f2  60%, #2f2  75%,
+      #ff2  90%, #f22 100%
+    );
+    
+	color: rgba(0,0,0,0);
+	background-clip: text;
+	-webkit-background-clip: text;
+	width: auto;
 }

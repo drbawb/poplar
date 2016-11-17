@@ -1,0 +1,16 @@
+<h2> Black Cards </h2>
+
+<%= for card <- @black_cards do %>
+  <div class="card card-black <%= card_class(card.body) %>">
+    <%= card.body %>
+  </div>
+
+<% end %>
+
+<h2> White Cards </h2>
+
+<%= for card <- @white_cards do %>
+  <div class="card card-white <%= card_class(card.body) %>">
+    <%= card.body %>
+  </div>
+<% end %>
