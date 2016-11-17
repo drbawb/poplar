@@ -39,7 +39,8 @@ defmodule Popura.Mixfile do
      {:gettext, "~> 0.11"},
      {:cowboy, "~> 1.0"},
      {:httpoison, "~> 0.10"},
-     {:remote_ip, "~> 0.1"}]
+     {:remote_ip, "~> 0.1"},
+     {:csv, "~> 1.4"}]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
