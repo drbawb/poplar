@@ -206,6 +206,20 @@ function renderWinner(msg) {
 	gameClient.appendChild(handDiv);
 }
 
+function renderDraw(msg) {
+	gameClient.innerHTML = "";
+
+	// build win announcement
+	let header = document.createElement("h2");
+	header.innerHTML = `No winner selected.`;
+
+	let dialog = document.createElement("p");
+	dialog.innerHTML = msg;
+
+	gameClient.appendChild(header);
+	gameClient.appendChild(dialog);
+}
+
 // connect & auth socket
 let socket = new Socket("/socket", {params: {token: tokenId}})
 socket.connect();
@@ -218,7 +232,7 @@ channel.join()
 
 // server has announced a winner
 channel.on("announce", (payload) => {
-	renderWinner(payload);
+	if (payload.error) { renderDraw(payload.error); } else { renderWinner(payload) };
 });
 
 // server has said we are the czar!

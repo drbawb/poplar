@@ -4,6 +4,7 @@
 # - pick_czar    :: the game selects a czar and prompt
 # - wait_players :: the game collects player responses
 # - wait_czar    :: the game waits for the czar to select a winner
+# - announce_winner :: shows a summary message to close out the round
 # - idle         :: the lobby waits to be garbage collected
 #
 # any of these modes may have an optional timeout associated with them, measured
@@ -67,6 +68,11 @@ defmodule Popura.LobbyServ do
   # these methods adjust the mode of the lobby, usually based on
   # a timeout or some game logic (e.g: all responses submitted.)
 
+  defp bc_error(ident, msg) do
+    response = %{error: msg}
+    Popura.Endpoint.broadcast! ident, "announce", response
+  end
+
   defp do_await_responses(state), do: %{state | tick: 0, mode: :wait_players}
 
   defp do_announce_timeout(state) do
@@ -78,10 +84,24 @@ defmodule Popura.LobbyServ do
   end
 
   defp do_czar_timeout(state) do
-    if state.tick > @max_ticks_czar do
-      %{state | tick: 0, mode: :pick_czar}
-    else
-      state
+    Logger.warn "czar to :: #{inspect state.submissions}"
+
+    no_submissions = state.submissions == []
+    czar_timeout   = state.tick > @max_ticks_czar
+    cond do
+      no_submissions ->
+        bc_error(ident(state.lobby_id), """
+        The czar did not make a selection in time. This round ends in a draw.
+        """)
+        %{state | tick: 0, mode: :announce_winner}
+
+      czar_timeout ->
+        bc_error(ident(state.lobby_id), """
+        The czar did not make a selection in time. This round ends in a draw.
+        """)
+        %{state | tick: 0, mode: :announce_winner}
+      
+      true -> state
     end
   end
 
