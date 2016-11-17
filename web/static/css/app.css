@@ -64,6 +64,7 @@
 
 .card-wordy {
   font-size: 1em;
+  overflow-wrap: break-word;
 }
 
 span.card-blank {
