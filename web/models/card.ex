@@ -15,7 +15,7 @@ defmodule Popura.Card do
   """
   def changeset(struct, params \\ %{}) do
     struct
-    |> cast(params, [:body, :slots])
+    |> cast(params, [:body, :deck_id, :slots])
     |> validate_required([:body, :slots])
   end
 end

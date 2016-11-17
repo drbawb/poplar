@@ -94,6 +94,39 @@ defmodule Popura.Util do
     end
   end
 
+  @doc """
+  Loads a CSV that is provided in the following format:
+
+  H Deck Title,Copyright
+  H White,     Black
+  <white>, <black>,
+  ...
+
+  Each black card must contain some number of underscores delimited
+  by whitespace or other punctuation.
+  """
+  def load_csv(path) do
+    {headres, records} =
+      File.stream!(path) 
+      |> CSV.decode
+      |> Enum.map(fn row -> row end)
+      |> Enum.split(2)
+
+    blank_pattern = ~r/\_+/
+    cards = List.foldl(records, %{black: [], white: []}, fn [white,black],st ->
+      st = if not(white == "") do
+        Map.put(st, :white, [%Card{body: white, slots: 0} | st.white])
+      else st end
+
+      st = if not(black == "") do
+        fragments = String.split(black, blank_pattern)
+        num_slots = Enum.count(fragments) - 1
+        body_text = Enum.join(fragments, " _ ")
+        Map.put(st, :black, [%Card{body: body_text, slots: num_slots} | st.black])
+      else st end
+    end)
+  end
+
   @doc "Boot a lobby"
   def boot(lobby_id) do
     lpid = {:global, "lobby:#{lobby_id}"}
