@@ -25,8 +25,9 @@
 
     <br><br>
     <pre><code>
-      DEBUG INFO (SESSION)
-      USER UUID  :: <%= @auth_id %>
+<%= @auth_id %>
+
+<em style="font-size: smaller">this is my uuid. there are many like it, but this one is mine.</em>
     </code></pre>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>

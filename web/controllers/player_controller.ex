@@ -5,8 +5,8 @@ defmodule Popura.PlayerController do
   alias Popura.Player
 
   def index(conn, %{"lobby_id" => lobby_id} = _params) do
-    lobby   = Repo.get!(Lobby, lobby_id)
-    players = Repo.all(Player)
+    lobby   = Repo.get!(Lobby, lobby_id) |> Repo.preload(:players)
+    players = lobby.players
     render(conn, "index.html", lobby: lobby, players: players)
   end
 

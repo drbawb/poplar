@@ -11,6 +11,28 @@ defmodule Popura.LobbyController do
   alias Popura.Lobby
   alias Popura.Player
 
+  def can?(conn, verb, resource) do
+    auth_id = get_session(conn, :auth_id)
+    is_authorized = _authrule(auth_id, verb, resource)
+
+    if not is_authorized do
+      conn
+      |> put_flash(:error, "You cannot do that, since you do not own that lobby.")
+      |> redirect(to: lobby_path(conn, :index))
+      |> halt
+    end
+
+    is_authorized
+  end
+
+  defp _authrule(id, update, %Lobby{owner_id: owner} = lobby)
+  when update in [:new, :create], do: not is_nil(id)
+
+  defp _authrule(id, update, %Lobby{owner_id: owner} = lobby)
+  when update in [:edit, :update, :delete], do: owner == id
+
+  defp _authrule(id, action, model), do: false
+
   def index(conn, _params) do
     lobbies = Repo.all(Lobby)
     render(conn, "index.html", lobbies: lobbies)
@@ -22,6 +44,8 @@ defmodule Popura.LobbyController do
   end
 
   def create(conn, %{"lobby" => lobby_params}) do
+    user_id = get_session(conn, :auth_id)
+    lobby_params = lobby_params |> Map.merge(%{"owner_id" => user_id})
     
     # preload selected decks ...
     {deck_id,lobby_params} = Map.pop(lobby_params, "deck_id")
@@ -82,7 +106,10 @@ defmodule Popura.LobbyController do
   end
 
   def edit(conn, %{"id" => id}) do
+    user_id = get_session(conn, :auth_id)
     lobby = Repo.get!(Lobby, id)
+    can?(conn, :edit, lobby)
+
     changeset = Lobby.changeset(lobby)
     render(conn, "edit.html", lobby: lobby, changeset: changeset)
   end
@@ -90,6 +117,7 @@ defmodule Popura.LobbyController do
   def update(conn, %{"id" => id, "lobby" => lobby_params}) do
     lobby = Repo.get!(Lobby, id)
     changeset = Lobby.changeset(lobby, lobby_params)
+    can?(conn, :update, lobby)
 
     case Repo.update(changeset) do
       {:ok, lobby} ->
@@ -103,15 +131,18 @@ defmodule Popura.LobbyController do
 
   def delete(conn, %{"id" => id}) do
     lobby = Repo.get!(Lobby, id)
-
-    # Here we use delete! (with a bang) because we expect
-    # it to always work (and if it does not, it will raise).
-    Repo.delete!(lobby)
-
-    conn
-    |> put_flash(:info, "Lobby deleted successfully.")
-    |> redirect(to: lobby_path(conn, :index))
+    
+    if can?(conn, :delete, lobby) do
+      Repo.delete!(lobby)
+      
+      conn
+      |> put_flash(:info, "Lobby deleted successfully.")
+      |> redirect(to: lobby_path(conn, :index))
+    else
+      conn
+    end
   end
+
 
   # TODO(hime): non-standard actions for controlling associated LobbyServ
 

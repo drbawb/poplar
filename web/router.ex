@@ -21,7 +21,9 @@ defmodule Popura.Router do
   scope "/", Popura do
     pipe_through [:browser, :core] # Use the default browser stack
 
-    get "/", PageController, :index
+    get "/",        PageController, :index
+    get "/landing", PageController, :landing
+
     resources "/decks", DeckController
 
     # TODO(hime): admin access, better routes

@@ -24,6 +24,9 @@ function buildCard(style, text) {
 	let cardBlock = document.createElement("div");
 	cardBlock.classList.add("card", `card-${style}`);
 	if (text.length > 75) { cardBlock.classList.add("card-wordy"); }
+	if (style === "black") { 
+		text = text.replace(/_/g, `<span class="card-blank"></span>`);
+	}
 
 	cardBlock.innerHTML = text;
 	return cardBlock;
@@ -53,11 +56,15 @@ function renderCzarClient() {
 	handDiv.classList.add("player-hand");
 	
 	let question = buildCard("black", _promptCard.body);
-	let dialog   = document.createElement("span");
-	dialog.innerHTML = "You are the czar, just wait a bit ...";
+	let header   = document.createElement("h2");
+	header.classList.add("funky");
+	let dialog   = document.createElement("p");
+	header.innerHTML = "you're the man now dawg"
+	dialog.innerHTML = "Please wait a moment while players submit their responses for your consideration.";
 
-	handDiv.appendChild(question);
+	handDiv.appendChild(header);
 	handDiv.appendChild(dialog);
+	handDiv.appendChild(question);
 	gameClient.appendChild(handDiv);
 }
 
@@ -121,7 +128,11 @@ function renderPlayerInfo(score) {
 	for (name in score) {
 		let player = score[name];
 		let node = document.createElement("li");
-		node.innerHTML = `${name} (czar? ${player.is_czar}), (won? ${player.rounds_won})`;
+		if (player.is_czar) {
+			node.classList.add("czar-border");
+		}
+
+		node.innerHTML = `${name}, (won? ${player.rounds_won})`;
 		playerList.appendChild(node);
 	}
 
