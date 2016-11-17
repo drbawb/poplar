@@ -3,7 +3,7 @@ defmodule Popura.Mixfile do
 
   def project do
     [app: :popura,
-     version: "0.1.0",
+     version: "0.2.0",
      elixir: "~> 1.2",
      elixirc_paths: elixirc_paths(Mix.env),
      compilers: [:phoenix, :gettext] ++ Mix.compilers,
@@ -18,7 +18,7 @@ defmodule Popura.Mixfile do
   # Type `mix help compile.app` for more information.
   def application do
     [mod: {Popura, []},
-     applications: [:phoenix, :phoenix_pubsub, :phoenix_html, :cowboy, :logger, :gettext,
+     applications: [:phoenix, :phoenix_pubsub, :phoenix_html, :cowboy, :logger, :gettext, :httpoison,
                     :phoenix_ecto, :postgrex]]
   end
 
@@ -38,6 +38,7 @@ defmodule Popura.Mixfile do
      {:phoenix_live_reload, "~> 1.0", only: :dev},
      {:gettext, "~> 0.11"},
      {:cowboy, "~> 1.0"},
+     {:httpoison, "~> 0.10"},
      {:remote_ip, "~> 0.1"}]
   end
 
