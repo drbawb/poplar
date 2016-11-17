@@ -84,8 +84,6 @@ defmodule Popura.LobbyServ do
   end
 
   defp do_czar_timeout(state) do
-    Logger.warn "czar to :: #{inspect state.submissions}"
-
     no_submissions = state.submissions == []
     czar_timeout   = state.tick > @max_ticks_czar
     cond do
@@ -290,7 +288,12 @@ defmodule Popura.LobbyServ do
     end)
 
     Logger.debug "picking winner: #{inspect winner_id}"
-    winner  = Repo.one(from p in Player, where: p.user_id == ^winner_id)
+    winner  = Repo.one(
+      from p in Player, 
+      where: p.user_id == ^winner_id
+      and p.lobby_id == ^state.lobby_id
+    )
+
     choices = choices
       |> Enum.map(fn el -> Repo.get!(Card, el) end)
       |> Enum.map(&json_card/1)
