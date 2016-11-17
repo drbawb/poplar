@@ -19,5 +19,6 @@ defmodule Popura.Player do
     struct
     |> cast(params, [:name, :user_id])
     |> validate_required([:name, :user_id, :lobby_id])
+    |> unique_constraint(:name, name: "players_lobby_id_name_index")
   end
 end
