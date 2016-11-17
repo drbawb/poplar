@@ -22,10 +22,9 @@ defmodule Popura.LobbyServ do
   alias Ecto.Multi
   alias Popura.Repo
   alias Popura.Card
+  alias Popura.CardPile
   alias Popura.Lobby
-  alias Popura.LobbyCard
   alias Popura.Player
-  alias Popura.PlayerCard
 
   @target_hand_size 10
   @max_ticks_czar   20
@@ -89,7 +88,7 @@ defmodule Popura.LobbyServ do
     cond do
       no_submissions ->
         bc_error(ident(state.lobby_id), """
-        The czar did not make a selection in time. This round ends in a draw.
+        There were no submissons in time, so this round ends in a draw.
         """)
         %{state | tick: 0, mode: :announce_winner}
 
@@ -139,10 +138,8 @@ defmodule Popura.LobbyServ do
       |> Repo.preload([:players])
 
     white_cards =
-      from(lc in LobbyCard,
-      where:
-        lc.lobby_id == ^lobby.id
-        and lc.tag == ^Lobby.white_deck)
+      from(lc in CardPile,
+      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_deck)
       |> Repo.all
       |> Enum.shuffle
 
@@ -162,22 +159,16 @@ defmodule Popura.LobbyServ do
       taken_assigns = Enum.map(taken, fn el -> [card_id: el.card_id, player_id: player.id] end)
 
       lobby_cards = from(
-        lc in LobbyCard,
+        lc in CardPile,
         where:
           lc.lobby_id == ^lobby.id
           and lc.tag  == ^Lobby.white_deck
           and lc.card_id in ^taken_ids)
 
-      # delete taken lobby cards
-      # insert corresponding cards in player hand
-      multi =
-        Multi.new
-        |> Multi.delete_all(:lobby_cards, lobby_cards)
-        |> Multi.insert_all(:player_cards, PlayerCard, taken_assigns)
 
-      {:ok, _multi} = Repo.transaction(multi)
-
+      Repo.update_all(lobby_cards, set: [lobby_id: nil, player_id: player.id])
       Logger.info "player hand dealt OK"
+
       hand =
         player
         |> Repo.preload([:cards])
@@ -207,9 +198,9 @@ defmodule Popura.LobbyServ do
     |> Repo.preload([:players])
 
     # deal black card ...
-    black_card = Repo.all(from lc in LobbyCard, where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_deck)
+    black_card = Repo.all(from lc in CardPile, where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_deck)
     |> Enum.shuffle |> List.first
-    |> LobbyCard.changeset(%{tag: Lobby.black_discard})
+    |> CardPile.changeset(%{tag: Lobby.black_discard})
     |> Repo.update! |> Repo.preload([:card])
 
     # select from the array in a wrapping fashion
@@ -326,25 +317,16 @@ defmodule Popura.LobbyServ do
     # move their choices to the lobbie's white discard pile
     Logger.debug "moving selected cards to discard => #{inspect choices}"
     player_discards = 
-      from pc in PlayerCard,
-      where: pc.player_id == ^player.id
-      and pc.card_id in ^choices
+      from cp in CardPile,
+      where: cp.player_id == ^player.id
+      and cp.card_id in ^choices
 
-    lobby_discards = Enum.map(choices, fn el ->
-      [card_id: el, lobby_id: lobby.id, tag: Lobby.black_discard]
-    end)
-
-    multi =
-      Multi.new
-      |> Multi.delete_all(:player_cards, player_discards)
-      |> Multi.insert_all(:lobby_cards, LobbyCard, lobby_discards)
-
-    {:ok, _multi} = Repo.transaction(multi)
+    Repo.update_all(player_discards, set: [lobby_id: lobby.id, tag: Lobby.white_discard])
 
     # send the current hand back to the player
     player_hand = 
-      from pc in PlayerCard,
-      where: pc.player_id == ^player.id
+      from cp in CardPile,
+      where: cp.player_id == ^player.id
 
     hand_descriptor = Repo.all(player_hand) 
                       |> Repo.preload(:card)

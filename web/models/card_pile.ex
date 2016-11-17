@@ -1,9 +1,12 @@
-defmodule Popura.PlayerCard do
+defmodule Popura.CardPile do
   use Popura.Web, :model
 
-  schema "players_cards" do
+  schema "cards_piles" do
+    field :tag, :string
+
     belongs_to :card,   Popura.Card
     belongs_to :player, Popura.Player
+    belongs_to :lobby,  Popura.Lobby
   end
 
   @doc """
@@ -11,7 +14,7 @@ defmodule Popura.PlayerCard do
   """
   def changeset(struct, params \\ %{}) do
     struct
-    |> cast(params, [:card_id, :player_id])
-    |> validate_required([:card_id, :player_id])
+    |> cast(params, [:tag])
+    |> validate_required([:tag])
   end
 end

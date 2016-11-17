@@ -6,8 +6,8 @@ defmodule Popura.LobbyController do
   import Ecto.Changeset, only: [put_change: 3, put_assoc: 3]
   alias Ecto.Multi
   alias Popura.Card
+  alias Popura.CardPile
   alias Popura.Deck 
-  alias Popura.LobbyCard
   alias Popura.Lobby
   alias Popura.Player
 
@@ -65,7 +65,7 @@ defmodule Popura.LobbyController do
           [card_id: el.id, lobby_id: lobby_id, tag: tag]
         end)
 
-        {count, _records} = Repo.insert_all(LobbyCard, cards)
+        {count, _records} = Repo.insert_all(CardPile, cards)
         {:ok, count}
       end)
 
@@ -197,20 +197,25 @@ defmodule Popura.LobbyController do
   # destroys current deck(s) and rebuilds them
   def reset(conn, %{"id" => id} = _params) do
     lobby = Repo.one(Lobby.with_decks(from l in Lobby, where: l.id == ^id))
+    player_ids = Repo.all(from l in Lobby, join: p in assoc(l, :players), select: p.id)
     Logger.warn "loaded lobby :: #{inspect lobby}"
+    Logger.warn "also resetting players :: #{inspect player_ids}"
 
     # move discards back to normal decks
     # TODO(hime): doesn't perma-discard winning submissions
     black_discards = 
-      from lc in LobbyCard,
+      from lc in CardPile,
       where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.black_discard
 
     white_discards = 
-      from lc in LobbyCard,
-      where: lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_discard
+      from(lc in CardPile,
+      where: (lc.lobby_id == ^lobby.id and lc.tag == ^Lobby.white_discard)
+      or (lc.player_id in ^player_ids))
+
+    Logger.warn inspect(Ecto.Adapters.SQL.to_sql(:all, Repo, white_discards))
 
     Repo.update_all(black_discards, set: [tag: Lobby.black_deck])
-    Repo.update_all(white_discards, set: [tag: Lobby.white_deck])
+    Repo.update_all(white_discards, set: [tag: Lobby.white_deck, lobby_id: lobby.id, player_id: nil])
 
     conn |> redirect(to: lobby_path(conn, :show, lobby))
   end

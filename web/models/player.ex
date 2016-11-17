@@ -7,7 +7,7 @@ defmodule Popura.Player do
     field :user_id, Ecto.UUID
 
     belongs_to :lobby, Popura.Lobby
-    has_many   :cards, Popura.PlayerCard, on_delete: :delete_all
+    has_many   :cards, Popura.CardPile, on_delete: :delete_all
 
     timestamps()
   end

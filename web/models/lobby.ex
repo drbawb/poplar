@@ -12,8 +12,8 @@ defmodule Popura.Lobby do
     field :owner_id, Ecto.UUID
     field :serv_lock, :boolean
 
-    has_many :cards, Popura.LobbyCard, on_delete: :delete_all
-    has_many :players, Popura.Player,  on_delete: :delete_all
+    has_many :cards,   Popura.CardPile, on_delete: :delete_all
+    has_many :players, Popura.Player,   on_delete: :delete_all
 
     timestamps()
   end
