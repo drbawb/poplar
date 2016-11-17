@@ -1,12 +1,16 @@
-<div class="jumbotron">
-  <h2> popura :: card server </h2>
-  <p class="lead">
-    has anybody been so far as decided to?
-  </p>
+<div class="banner">
+  <div>
+    <h2> poplar :: card server </h2>
+    <p class="lead"><%= Popura.Fortune.random %></p>
+  </div>
+
+  <div class="poplar">
+    <img src="<%= static_path(@conn, "/images/poplar_transparent.png") %>" />
+  </div>
 </div>
 
 <div class="row">
-  <div class="col-lg-4">
+  <div class="col-sm-4">
     <h3>Create a Lobby</h3>
     <p>Create a new lobby that your friends can join.</p>
     <%= link "Start Lobby", 
@@ -14,9 +18,9 @@
       class: "btn btn-default"%>
   </div>
 
-  <div class="gutter col-lg-4"></div>
+  <div class="gutter col-sm-4"></div>
 
-  <div class="col-lg-4">
+  <div class="col-sm-4">
     <h3>Join a Lobby</h3>
     <p>The host of your game will provide you with a link
      to join the lobby server.</p>

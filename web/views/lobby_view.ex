@@ -1,4 +1,6 @@
 defmodule Popura.LobbyView do
+  require Logger
+
   use Popura.Web, :view
   import Ecto.Query
 
@@ -11,23 +13,30 @@ defmodule Popura.LobbyView do
     |> Enum.map(fn el -> {el.name, el.id} end)
   end
 
-  def count_black(cards) do
-    Enum.filter(cards, fn el -> el.tag == Lobby.black_deck end)
-    |> Enum.count
+  def count_black(lobby) do
+    _count_cards(lobby, Lobby.black_deck)
   end
 
-  def count_white(cards) do
-    Enum.filter(cards, fn el -> el.tag == Lobby.white_deck end)
-    |> Enum.count
+  def count_white(lobby) do
+    _count_cards(lobby, Lobby.white_deck)
   end
 
-  def count_black_discard(cards) do
-    Enum.filter(cards, fn el -> el.tag == Lobby.black_discard end)
-    |> Enum.count
+  def count_black_discard(lobby) do
+    _count_cards(lobby, Lobby.black_discard)
   end
   
-  def count_white_discard(cards) do
-    Enum.filter(cards, fn el -> el.tag == Lobby.white_discard end)
-    |> Enum.count
+  def count_white_discard(lobby) do
+    _count_cards(lobby, Lobby.white_discard)
+  end
+
+  defp _count_cards(lobby, tag) do
+    Logger.warn inspect(lobby)
+    query = from(
+      l in Lobby, 
+      join: c in assoc(l, :cards),
+      where: l.id == ^lobby and c.tag == ^tag,
+      select: count(c.id))
+
+    Repo.one(query) 
   end
 end

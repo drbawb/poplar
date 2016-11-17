@@ -64,6 +64,36 @@ defmodule Popura.Util do
     Logger.debug "white res ok... #{white_count}"
   end
 
+  @doc """
+  Loads a deck from the cardcastgame.com API (v1) by using
+  the provided five digit shortcode.
+  """
+  def load_cast(playcode) do
+    api   = "https://api.cardcastgame.com/v1"
+    deck  = api <> "/decks/" <> playcode
+    cards = deck <> "/cards"
+
+    deck  = HTTPoison.get!(deck).body  |> Poison.decode!
+    cards = HTTPoison.get!(cards).body |> Poison.decode!
+
+    black = cards["calls"]
+    white = cards["responses"]
+   
+    {:ok, pdeck} = Deck.changeset(%Deck{name: deck["name"]}) |> Repo.insert
+    black = for card <- black do
+      num_slots = Enum.count(card["text"]) - 1
+      body = card["text"] |> Enum.join(" _ ")
+      Card.changeset(%Card{deck_id: pdeck.id, body: body, slots: num_slots})
+      |> Repo.insert!
+    end
+
+    white = for card <- white do
+      body = card["text"] |> List.first
+      Card.changeset(%Card{deck_id: pdeck.id, body: body, slots: 0})
+      |> Repo.insert!
+    end
+  end
+
   @doc "Boot a lobby"
   def boot(lobby_id) do
     lpid = {:global, "lobby:#{lobby_id}"}

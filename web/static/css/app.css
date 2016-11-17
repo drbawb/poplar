@@ -1,3 +1,20 @@
+/* misc */
+
+.banner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: #dadada;
+  border-radius: 5px;
+}
+
+.poplar img {
+  width: calc(362px / 3); height: calc(563px / 3);
+}
+
+/* cards */
 .card {
   display:inline-block;
   position:relative; 

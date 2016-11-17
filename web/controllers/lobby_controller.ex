@@ -90,18 +90,22 @@ defmodule Popura.LobbyController do
 
   def show(conn, %{"id" => id}) do
     user_id = get_session(conn, :auth_id)
-    player  = Repo.one(from p in Player, where: p.user_id == ^user_id and p.lobby_id == ^id)
+    lobby =
+      from(l in Lobby, where: l.id == ^id,
+      join: p in assoc(l, :players),
+      preload: [players: p])
+      |> Repo.one()
 
-    if player == nil do
+    if Enum.any?(lobby.players, fn el -> el.user_id == user_id end) do
+      token = Phoenix.Token.sign(Popura.Endpoint, "user", user_id)
+      render(conn, "show.html", 
+        lobby: lobby,
+        token: token,
+        is_admin: (user_id == lobby.owner_id))
+    else
       conn
       |> put_flash(:info, "You are not a member of that lobby.")
       |> redirect(to: lobby_path(conn, :index))
-    else
-      token = Phoenix.Token.sign(Popura.Endpoint, "user", user_id)
-      lobby = Repo.get!(Lobby, id) 
-              |> Repo.preload([:players, :cards])
-
-      render(conn, "show.html", lobby: lobby, token: token, is_admin: (user_id == lobby.owner_id))
     end
   end
 

@@ -20,10 +20,21 @@ let _choices      = [];
 let _playerHand   = [];
 let _submissions  = [];
 
+function hasLongWord(text) {
+	let words = text.split(/\s+/);
+	for (let i = 0; i < words.length; i++) {
+		if (words[i].length > 10) { return true; }
+	}
+
+	return false;
+}
+
 function buildCard(style, text) {
 	let cardBlock = document.createElement("div");
 	cardBlock.classList.add("card", `card-${style}`);
-	if (text.length > 75) { cardBlock.classList.add("card-wordy"); }
+	if (text.length > 75)  { cardBlock.classList.add("card-wordy"); }
+	else if (hasLongWord(text)) { cardBlock.classList.add("card-wordy"); }
+
 	if (style === "black") { 
 		text = text.replace(/_/g, `<span class="card-blank"></span>`);
 	}

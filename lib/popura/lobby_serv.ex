@@ -27,9 +27,9 @@ defmodule Popura.LobbyServ do
   alias Popura.Player
 
   @target_hand_size 10
-  @max_ticks_czar   15
-  @max_ticks_player 15
-  @max_ticks_win    05
+  @max_ticks_czar   20
+  @max_ticks_player 20
+  @max_ticks_win    10
 
   def start_link(opts \\ []) do
     default_state = %{

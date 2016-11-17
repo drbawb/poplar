@@ -1,6 +1,8 @@
 defmodule Popura.PlayerController do
   use Popura.Web, :controller
 
+  require Logger
+
   alias Popura.Lobby
   alias Popura.Player
 
@@ -21,11 +23,15 @@ defmodule Popura.PlayerController do
   defp _authrule(id, verb, %Lobby{owner_id: owner} = lobby)
   when verb in [:new, :create] do
 
-    player_is_not_blank   = not is_nil(id)
+    player_is_not_blank = not is_nil(id)
     player_is_present =
-      Repo.all(from l in Lobby, join: p in assoc(l, :players), select: p.user_id)
+      lobby
+      |> Repo.preload(:players)
+      |> Map.get(:players)
+      |> Enum.map(fn el -> el.user_id end)
       |> Enum.any?(fn el -> el == id end)
 
+    Logger.warn "auth: pblank #{inspect player_is_not_blank}, ppres #{inspect player_is_present}"
     player_is_not_blank and not player_is_present
   end
 

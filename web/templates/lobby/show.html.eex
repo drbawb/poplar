@@ -55,22 +55,22 @@
         <ul>
           <li>
             <strong>Black (in play)</strong>
-            <%= count_black(@lobby.cards) %>
+            <%= count_black(@lobby.id) %>
           </li>
 
           <li>
             <strong>Black (discard)</strong>
-            <%= count_black_discard(@lobby.cards) %>
+            <%= count_black_discard(@lobby.id) %>
           </li>
 
           <li>
             <strong>White (in play)</strong>
-            <%= count_white(@lobby.cards) %>
+            <%= count_white(@lobby.id) %>
           </li>
 
           <li>
             <strong>White (discard)</strong>
-            <%= count_white_discard(@lobby.cards) %>
+            <%= count_white_discard(@lobby.id) %>
           </li>
         </ul>
       </div> 
